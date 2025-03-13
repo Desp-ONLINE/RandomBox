@@ -1,0 +1,6 @@
+name: RandomBox
+version: '1.0-SNAPSHOT'
+main: org.desp.randomBox.RandomBox
+api-version: '1.20'
+depend:
+  [MMOItems, MMOCore, BinggreAPI, MythicLib, MMOMail, MongoLibraryPlugin, VelocitySocketClient]
