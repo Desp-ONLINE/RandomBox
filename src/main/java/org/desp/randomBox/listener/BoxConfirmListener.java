@@ -3,11 +3,20 @@ package org.desp.randomBox.listener;
 import static org.desp.randomBox.boxUtils.BoxUtils.getRandomItem;
 import static org.desp.randomBox.boxUtils.BoxUtils.getValidRewardItem;
 
+import com.binggre.binggreapi.BinggrePlugin;
+import com.binggre.binggreapi.utils.ColorManager;
 import com.binggre.velocitysocketclient.VelocityClient;
+
+import java.awt.*;
+import java.awt.event.ComponentEvent;
 import java.util.List;
 import java.util.Map;
+
 import net.Indyuce.mmoitems.MMOItems;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.serializer.json.JSONComponentSerializer;
+import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -41,7 +50,8 @@ public class BoxConfirmListener implements Listener {
         Player player = event.getPlayer();
         ItemStack itemInMainHand = player.getInventory().getItemInMainHand();
 
-        String itemInMainHandDisplayName = itemInMainHand.getItemMeta().getDisplayName().replace("&", "§");
+        Component useItemComponent = itemInMainHand.displayName();
+        String useItemDisplayName = itemInMainHand.getItemMeta().getDisplayName();
 
         String playerRightHandItemID = MMOItems.getID(itemInMainHand);
 
@@ -54,19 +64,22 @@ public class BoxConfirmListener implements Listener {
 
             ItemDataDto randomItem = getRandomItem(availableItems);
 
-            ItemStack item = getValidRewardItem(randomItem);
-            String result = item.getItemMeta().getDisplayName().replace("&", "§");
+            ItemStack rewardItem = getValidRewardItem(randomItem);
+            Component rewardItemComponent = rewardItem.getItemMeta().displayName();
 
             String itemId = randomItem.getItem_id();
             BoxUtils.sendReward(box_id, BoxUtils.getReward(randomItem), player);
 
             if (randomItem.isNotice()) {
-                String message = "§f" + player.getName() + " 님께서 §a" + itemInMainHandDisplayName + "§f에서 " + result+ "§f를 획득하셨습니다!";
+                TextComponent message = Component.text("§f " + player.getName() + " 님께서 §a").append(useItemComponent).append(Component.text("§f 에서 ") )
+                        .append(rewardItemComponent)
+                        .append(Component.text("§f를 획득하셨습니다!"));
 
-                Bukkit.broadcast(Component.text(message));
-                VelocityClient.getInstance().getConnectClient().send(VelocityProxyListener.class, message);
+                Bukkit.broadcast(message);
+                String serializedComponent = JSONComponentSerializer.json().serialize(message);
+                VelocityClient.getInstance().getConnectClient().send(VelocityProxyListener.class, serializedComponent);
             } else {
-                player.sendMessage(itemInMainHandDisplayName+"§f으로 "+result+"§f를 뽑기에 성공했습니다!");
+                player.sendMessage(useItemDisplayName + "§f으로 " + rewardItem.getItemMeta().getDisplayName() + "§f를 뽑기에 성공했습니다!");
             }
 
             if (itemInMainHand.getAmount() > 1) {
