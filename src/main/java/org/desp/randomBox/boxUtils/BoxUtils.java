@@ -46,10 +46,10 @@ public class BoxUtils {
     public static ItemDataDto getRandomItem(List<ItemDataDto> items) {
         Random random = new Random();
 
-        int totalWeight = items.stream().mapToInt(ItemDataDto::getChance).sum();
-        int randomValue = random.nextInt(totalWeight);
+        double totalWeight = items.stream().mapToDouble(ItemDataDto::getChance).sum();
+        double randomValue = random.nextDouble(totalWeight);
 
-        int cumulativeWeight = 0;
+        double cumulativeWeight = 0;
         for (ItemDataDto item : items) {
             cumulativeWeight += item.getChance();
             if (randomValue < cumulativeWeight) {

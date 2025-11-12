@@ -79,7 +79,7 @@ public class BoxConfirmListener implements Listener {
                 String serializedComponent = JSONComponentSerializer.json().serialize(message);
                 VelocityClient.getInstance().getConnectClient().send(VelocityProxyListener.class, serializedComponent);
             } else {
-                player.sendMessage(useItemDisplayName + "§f으로 " + rewardItem.getItemMeta().getDisplayName() + "§f를 뽑기에 성공했습니다!");
+                player.sendMessage(useItemDisplayName + "§f으로 " + rewardItem.getItemMeta().getDisplayName() + "§f를 획득했습니다!");
             }
 
             if (itemInMainHand.getAmount() > 1) {

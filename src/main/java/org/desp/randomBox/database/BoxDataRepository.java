@@ -44,7 +44,7 @@ public class BoxDataRepository {
                         .item_id(split[1])
                         .type(split[0])
                         .amount(item.getInteger("amount"))
-                        .chance(item.getInteger("chance"))
+                        .chance(Double.parseDouble(Integer.toString(item.getInteger("chance"))))
                         .notice(item.getBoolean("notice"))
                         .build();
                 availableItemList.add(itemDataDto);

@@ -10,6 +10,6 @@ public class ItemDataDto {
     private String item_id;
     private String type;
     private int amount;
-    private int chance;
+    private double chance;
     private boolean notice;
 }
