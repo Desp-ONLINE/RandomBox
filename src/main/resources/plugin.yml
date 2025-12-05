@@ -4,3 +4,6 @@ main: org.desp.randomBox.RandomBox
 api-version: '1.20'
 depend:
   [MMOItems, MMOCore, BinggreAPI, MythicLib, MMOMail, MongoLibraryPlugin, VelocitySocketClient]
+commands:
+  천장:
+    aliases: ["cjswkd"]

@@ -2,14 +2,15 @@ package org.desp.randomBox.boxUtils;
 
 import com.binggre.mmomail.MMOMail;
 import com.binggre.mmomail.objects.Mail;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.Type;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.desp.randomBox.dto.ItemDataDto;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 public class BoxUtils {
 

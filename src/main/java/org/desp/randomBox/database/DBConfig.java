@@ -1,8 +1,9 @@
 package org.desp.randomBox.database;
 
-import java.io.File;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.desp.randomBox.RandomBox;
+
+import java.io.File;
 
 public class DBConfig {
 

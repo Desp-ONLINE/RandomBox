@@ -3,7 +3,6 @@ package org.desp.randomBox.listener;
 import com.binggre.velocitysocketclient.listener.VelocitySocketListener;
 import com.binggre.velocitysocketclient.socket.SocketResponse;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.serializer.json.JSONComponentSerializer;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;

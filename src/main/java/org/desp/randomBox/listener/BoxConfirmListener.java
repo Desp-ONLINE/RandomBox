@@ -1,22 +1,10 @@
 package org.desp.randomBox.listener;
 
-import static org.desp.randomBox.boxUtils.BoxUtils.getRandomItem;
-import static org.desp.randomBox.boxUtils.BoxUtils.getValidRewardItem;
-
-import com.binggre.binggreapi.BinggrePlugin;
-import com.binggre.binggreapi.utils.ColorManager;
 import com.binggre.velocitysocketclient.VelocityClient;
-
-import java.awt.*;
-import java.awt.event.ComponentEvent;
-import java.util.List;
-import java.util.Map;
-
 import net.Indyuce.mmoitems.MMOItems;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.serializer.json.JSONComponentSerializer;
-import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -32,6 +20,12 @@ import org.desp.randomBox.database.ItemDrawRepository;
 import org.desp.randomBox.dto.BoxDataDto;
 import org.desp.randomBox.dto.ItemDataDto;
 import org.desp.randomBox.dto.ItemDrawLogDto;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.desp.randomBox.boxUtils.BoxUtils.getRandomItem;
+import static org.desp.randomBox.boxUtils.BoxUtils.getValidRewardItem;
 
 public class BoxConfirmListener implements Listener {
 

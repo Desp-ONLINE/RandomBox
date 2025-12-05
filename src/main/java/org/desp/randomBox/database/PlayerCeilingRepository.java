@@ -1,19 +1,16 @@
 package org.desp.randomBox.database;
 
-import com.binggre.mmomail.MMOMail;
-import com.binggre.mmomail.objects.Mail;
 import com.mongodb.client.MongoCollection;
-import net.Indyuce.mmoitems.MMOItems;
 import org.bson.Document;
-import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.desp.randomBox.dto.BoxDataDto;
 import org.desp.randomBox.dto.CeilingDataDto;
 import org.desp.randomBox.dto.DetailedCeilingDto;
 import org.desp.randomBox.dto.PlayerCeilingDto;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
 public class PlayerCeilingRepository {
@@ -131,14 +128,15 @@ public class PlayerCeilingRepository {
         CeilingDataDto ceilingData = CeilingRepository.getInstance().getCeilingData(ceilingID);
 
         if (current.equals(ceilingData.getAmount())) {
-            volatileAmount(player, ceilingID, ceilingData.isVolatile());
+            if(ceilingData.isVolatile()){
+                volatileAmount(player, ceilingID, true);
+
+            }
         }
     }
 
-    public void volatileAmount(Player player, String ceilingID, boolean isVolatile) {
-        if (!isVolatile) {
-            return;
-        }
+    // 코드 구조 잘못됨. 이건 그냥 휘발하겠다로 봐야함.
+    public void volatileAmount(Player player, String ceilingID, boolean giveRewards) {
         PlayerCeilingDto playerCeilingDto = playerCeilingDtoMap.get(player);
         HashMap<String, DetailedCeilingDto> playerCeilingData = playerCeilingDto.getCeilingData();
 
@@ -147,39 +145,23 @@ public class PlayerCeilingRepository {
             if (key.equals(ceilingID)) {
                 DetailedCeilingDto detailedCeilingDto = playerCeilingData.get(key);
                 detailedCeilingDto.setAmount(0);
-
                 playerCeilingData.put(key, detailedCeilingDto);
                 playerCeilingDto.setCeilingData(playerCeilingData);
                 playerCeilingDtoMap.put(player, playerCeilingDto);
-
                 break;
             }
         }
 
-    }
-
-    public void giveRewards(Player player, String ceilingID) {
         CeilingDataDto ceilingData = CeilingRepository.getInstance().getCeilingData(ceilingID);
 
-        List<String> rewardData = ceilingData.getRewardData();
-
-        List<ItemStack> mailItems = new ArrayList<>();
-
-        for (String rewardDatum : rewardData) {
-            String[] split = rewardDatum.split(":");
-            String type = split[0];
-            String mmoitemID = split[1];
-            Integer amount = Integer.valueOf(split[2]);
-
-            ItemStack item = MMOItems.plugin.getItem(type, mmoitemID);
-            item.setAmount(amount);
-
-            mailItems.add(item);
+        if(giveRewards){
+            CeilingRepository.getInstance().giveRewards(player, ceilingID);
+            return;
         }
 
-        Mail mail = MMOMail.getInstance().getMailAPI().createMail("시스템", ceilingID + " 천장 시스템 보상입니다.", 0, mailItems);
-        MMOMail.getInstance().getMailAPI().sendMail(player.getName(), mail);
     }
+
+
 
 
 }
