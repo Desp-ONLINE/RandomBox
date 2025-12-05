@@ -24,6 +24,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
+import org.desp.randomBox.api.RandomBoxOpenEvent;
 import org.desp.randomBox.boxUtils.BoxUtils;
 import org.desp.randomBox.boxUtils.DateUtils;
 import org.desp.randomBox.database.BoxDataRepository;
@@ -49,11 +50,16 @@ public class BoxConfirmListener implements Listener {
 
         Player player = event.getPlayer();
         ItemStack itemInMainHand = player.getInventory().getItemInMainHand();
+        if(itemInMainHand.equals(new ItemStack(Material.AIR))) {
+            return;
+        }
 
         Component useItemComponent = itemInMainHand.displayName();
         String useItemDisplayName = itemInMainHand.getItemMeta().getDisplayName();
 
         String playerRightHandItemID = MMOItems.getID(itemInMainHand);
+
+
 
         if (event.getAction().isRightClick() && boxData.containsKey(playerRightHandItemID)) {
             BoxDataDto boxDataDto = boxData.get(playerRightHandItemID);
@@ -68,6 +74,9 @@ public class BoxConfirmListener implements Listener {
             Component rewardItemComponent = rewardItem.getItemMeta().displayName();
 
             String itemId = randomItem.getItem_id();
+            int amount = randomItem.getAmount();
+            double chance = randomItem.getChance();
+            boolean notice = randomItem.isNotice();
             BoxUtils.sendReward(box_id, BoxUtils.getReward(randomItem), player);
 
             if (randomItem.isNotice()) {
@@ -78,6 +87,8 @@ public class BoxConfirmListener implements Listener {
                 Bukkit.broadcast(message);
                 String serializedComponent = JSONComponentSerializer.json().serialize(message);
                 VelocityClient.getInstance().getConnectClient().send(VelocityProxyListener.class, serializedComponent);
+
+                Bukkit.getPluginManager().callEvent(new RandomBoxOpenEvent(player, itemId, amount, chance, notice, box_id));
             } else {
                 player.sendMessage(useItemDisplayName + "§f으로 " + rewardItem.getItemMeta().getDisplayName() + "§f를 획득했습니다!");
             }
