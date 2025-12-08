@@ -106,8 +106,8 @@ public class PlayerCeilingRepository {
         HashMap<String, DetailedCeilingDto> playerCeilingData = playerCeilingDto.getCeilingData();
         for (String key : playerCeilingData.keySet()) {
             if (key.equals(ceilingID)) {
-                playerCeilingData.get(key).setAmount(playerCeilingData.get(key).getAmount() + amount);
                 current = playerCeilingData.get(key).getAmount() + amount;
+                playerCeilingData.get(key).setAmount(current);
 
                 playerCeilingDto.setCeilingData(playerCeilingData);
                 playerCeilingDtoMap.put(player, playerCeilingDto);
@@ -130,15 +130,18 @@ public class PlayerCeilingRepository {
         if (current.equals(ceilingData.getAmount())) {
             if(ceilingData.isVolatile()){
                 volatileAmount(player, ceilingID, true);
-
+            } else {
+                CeilingRepository.getInstance().giveRewards(player, ceilingID);
             }
         }
     }
 
     // 코드 구조 잘못됨. 이건 그냥 휘발하겠다로 봐야함.
     public void volatileAmount(Player player, String ceilingID, boolean giveRewards) {
+
         PlayerCeilingDto playerCeilingDto = playerCeilingDtoMap.get(player);
         HashMap<String, DetailedCeilingDto> playerCeilingData = playerCeilingDto.getCeilingData();
+
 
 
         for (String key : playerCeilingData.keySet()) {
@@ -152,7 +155,6 @@ public class PlayerCeilingRepository {
             }
         }
 
-        CeilingDataDto ceilingData = CeilingRepository.getInstance().getCeilingData(ceilingID);
 
         if(giveRewards){
             CeilingRepository.getInstance().giveRewards(player, ceilingID);

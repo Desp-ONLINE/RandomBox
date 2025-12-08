@@ -101,14 +101,17 @@ public class CeilingRepository {
         Mail mail = MMOMail.getInstance().getMailAPI().createMail("시스템", name + " 천장 시스템 보상입니다.", 0, mailItems);
         MMOMail.getInstance().getMailAPI().sendMail(player.getName(), mail);
 
-        player.sendMessage(ColorManager.format("#54daf4§n                                  §f"));
+
+        player.playSound(player, "uisounds:hugewin", 1, 1);
+        player.sendMessage(ColorManager.format("#54daf4§n                                                                                                               §f"));
         player.sendMessage(ColorManager.format(""));
         player.sendMessage(ColorManager.format("#54daf4 "+name+" 천장 시스템의 목표가 달성되어 보상이 지급되었습니다. §7§o(/메일함 또는 /ㅁ)"));
+        player.sendMessage("§f");
         for (ItemStack mailItem : mailItems) {
-            player.sendMessage("    "+mailItem.getItemMeta().getDisplayName()+" §fx"+mailItem.getAmount());
+            player.sendMessage("   §e- "+mailItem.getItemMeta().getDisplayName()+" §fx"+mailItem.getAmount());
         }
-        player.sendMessage(ColorManager.format(""));
-        player.sendMessage(ColorManager.format("#54daf4§n                                  §f"));
+        player.sendMessage(ColorManager.format("#54daf4§n                                                                                                               §f"));
+
     }
 
 

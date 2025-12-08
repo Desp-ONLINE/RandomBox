@@ -26,14 +26,14 @@ public class CeilingCommand implements CommandExecutor {
         HashMap<String, DetailedCeilingDto> playerCeilingData = playerCacheData.getCeilingData();
 
 
-        player.sendMessage(ColorManager.format("#54daf4§n                                  §f"));
+        player.sendMessage(ColorManager.format("#54daf4§n                                                                                                      §f"));
         player.sendMessage(ColorManager.format(""));
 
         for (String ceilingID : playerCeilingData.keySet()) {
             DetailedCeilingDto detailedCeilingDto = playerCeilingData.get(ceilingID);
             CeilingDataDto ceilingData = ceilingRepository.getCeilingData(ceilingID);
 
-            String resultMessage = "  §f"+ceilingData.getName()+" 보상";
+            String resultMessage = "  §f- §6"+ceilingData.getName()+"§f: 보상";
 
             int toRewardCount = ceilingData.getAmount() - detailedCeilingDto.getAmount();
 
@@ -53,8 +53,8 @@ public class CeilingCommand implements CommandExecutor {
             player.sendMessage(resultMessage);
         }
 
-        player.sendMessage(ColorManager.format(""));
-        player.sendMessage(ColorManager.format("#54daf4§n                                  §f"));
+        player.sendMessage(ColorManager.format("#54daf4§n                                                                                                      §f"));
+
 
         return false;
     }
