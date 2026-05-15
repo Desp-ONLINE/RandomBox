@@ -10,6 +10,7 @@ import org.desp.randomBox.database.PlayerCeilingRepository;
 import org.desp.randomBox.dto.CeilingDataDto;
 import org.desp.randomBox.dto.DetailedCeilingDto;
 import org.desp.randomBox.dto.PlayerCeilingDto;
+import org.dople.dataSync.inventory.InventorySyncListener;
 
 public class RandomBoxListener implements Listener {
 
@@ -17,6 +18,10 @@ public class RandomBoxListener implements Listener {
     public void onRandomBoxOpen(RandomBoxOpenEvent event) {
         Player player = event.getPlayer();
         String randomBoxID = event.getRandomBoxID();
+
+        if (InventorySyncListener.isDataLoading(player)) {
+            return;
+        }
 
         CeilingRepository ceilingRepository = CeilingRepository.getInstance();
         PlayerCeilingRepository playerCeilingRepository = PlayerCeilingRepository.getInstance();
