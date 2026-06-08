@@ -12,3 +12,6 @@ commands:
   천장확인:
     aliases: ["cjswkdghkrdls"]
     usage: "/천장확인 <닉네임>"
+  천장복구:
+    aliases: ["cjswkdqhrrn"]
+    usage: "/천장복구 [진행]"

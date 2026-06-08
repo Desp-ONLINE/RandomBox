@@ -8,8 +8,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.units.qual.C;
 import org.desp.randomBox.command.CeilingCommand;
 import org.desp.randomBox.command.CeilingCheckCommand;
+import org.desp.randomBox.command.CeilingRestoreCommand;
 import org.desp.randomBox.database.PlayerCeilingRepository;
 import org.desp.randomBox.listener.BoxConfirmListener;
+import org.desp.randomBox.listener.CeilingGuiListener;
 import org.desp.randomBox.listener.CrateBoxListener;
 import org.desp.randomBox.listener.PlayerListener;
 import org.desp.randomBox.listener.RandomBoxListener;
@@ -34,6 +36,7 @@ public final class RandomBox extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new RandomBoxListener(), this);
         Bukkit.getPluginManager().registerEvents(new PlayerListener(), this);
         Bukkit.getPluginManager().registerEvents(new CrateBoxListener(), this);
+        Bukkit.getPluginManager().registerEvents(new CeilingGuiListener(), this);
 
         loadPlayerDatas();
 
@@ -51,6 +54,7 @@ public final class RandomBox extends JavaPlugin {
     public void registerCommands(){
         getCommand("천장").setExecutor(new CeilingCommand());
         getCommand("천장확인").setExecutor(new CeilingCheckCommand());
+        getCommand("천장복구").setExecutor(new CeilingRestoreCommand());
     }
 
     @Override

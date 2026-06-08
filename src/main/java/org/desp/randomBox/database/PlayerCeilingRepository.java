@@ -154,6 +154,59 @@ public class PlayerCeilingRepository {
         playerCeilingCollection.replaceOne(new Document("uuid", player.getUniqueId().toString()), playerDocument);
     }
 
+    // 오프라인 플레이어 포함, uuid 로 DB 의 천장 누적량을 절대값 amount 로 설정한다. (로그 재생 기반 소급 복구용)
+    // 플레이어 문서가 없으면 nickname 으로 새 문서를 만들고(upsert), 해당 ceilingID 항목이 없으면 새로 추가한다.
+    // 반환: { previous(변경 전 누적량, 없었으면 0), createdDocument(문서를 새로 만들었으면 true) }
+    public CeilingRestoreResult setCeilingAmountByUuid(String uuid, String nickname, String ceilingID, int amount) {
+        Document playerDocument = playerCeilingCollection.find(new Document("uuid", uuid)).first();
+        boolean createdDocument = false;
+        if (playerDocument == null) {
+            playerDocument = new Document("uuid", uuid)
+                    .append("nickname", nickname)
+                    .append("ceilingData", new ArrayList<Document>());
+            createdDocument = true;
+        }
+
+        List<Document> ceilingData = playerDocument.getList("ceilingData", Document.class);
+        if (ceilingData == null) {
+            ceilingData = new ArrayList<>();
+        }
+
+        int previous = 0;
+        boolean found = false;
+        for (Document ceilingDatum : ceilingData) {
+            if (ceilingID.equals(ceilingDatum.getString("ceilingID"))) {
+                Integer current = ceilingDatum.getInteger("amount");
+                previous = current == null ? 0 : current;
+                ceilingDatum.put("amount", amount);
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            ceilingData.add(new Document("ceilingID", ceilingID).append("amount", amount));
+        }
+
+        playerDocument.put("ceilingData", ceilingData);
+
+        if (createdDocument) {
+            playerCeilingCollection.insertOne(playerDocument);
+        } else {
+            playerCeilingCollection.replaceOne(new Document("uuid", uuid), playerDocument);
+        }
+        return new CeilingRestoreResult(previous, createdDocument);
+    }
+
+    public static class CeilingRestoreResult {
+        public final int previous;
+        public final boolean createdDocument;
+
+        public CeilingRestoreResult(int previous, boolean createdDocument) {
+            this.previous = previous;
+            this.createdDocument = createdDocument;
+        }
+    }
+
     public boolean increaseCeilingAmount(Player player, String ceilingID, Integer amount) {
         Integer current = 0;
         boolean isAlreayExists = false;
