@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.units.qual.C;
 import org.desp.randomBox.command.CeilingCommand;
+import org.desp.randomBox.command.CeilingCheckCommand;
 import org.desp.randomBox.database.PlayerCeilingRepository;
 import org.desp.randomBox.listener.BoxConfirmListener;
 import org.desp.randomBox.listener.CrateBoxListener;
@@ -43,11 +44,13 @@ public final class RandomBox extends JavaPlugin {
     public void loadPlayerDatas(){
         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
             PlayerCeilingRepository.getInstance().loadPlayerData(onlinePlayer);
+            PlayerCeilingRepository.getInstance().grantPendingCeilingRewards(onlinePlayer);
         }
     }
 
     public void registerCommands(){
         getCommand("천장").setExecutor(new CeilingCommand());
+        getCommand("천장확인").setExecutor(new CeilingCheckCommand());
     }
 
     @Override

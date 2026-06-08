@@ -45,7 +45,7 @@ public class CeilingRepository {
             Boolean isVolatile = document.getBoolean("isVolatile");
             String type = document.getString("type");
             String name = document.getString("name");
-            String goalString = document.getString("goalString");
+            List<String> goalString = document.getList("goalString", String.class);
             List<String> rewardData = document.getList("rewardData", String.class);
 
             CeilingDataDto ceilingDataDto = CeilingDataDto.builder().name(name).ceilingID(ceilingID).amount(amount).isVolatile(isVolatile).rewardData(rewardData).goalString(goalString).type(type).build();
@@ -75,6 +75,38 @@ public class CeilingRepository {
 
     public CeilingDataDto getCeilingData(String ceilingID){
         return ceilingDataDtoMap.get(ceilingID);
+    }
+
+    // volatile 천장에서 누적량이 목표 이상이면, 지급해야 할 보상 횟수(목표 단위)를 반환. 그 외엔 0.
+    public int getPendingRewardTimes(String ceilingID, int playerAmount) {
+        CeilingDataDto ceilingData = getCeilingData(ceilingID);
+        if (ceilingData == null || !ceilingData.isVolatile()) {
+            return 0;
+        }
+        Integer goal = ceilingData.getAmount();
+        if (goal == null || goal <= 0 || playerAmount < goal) {
+            return 0;
+        }
+        return playerAmount / goal;
+    }
+
+    // 보상 횟수만큼 곱한 천장 보상 아이템 목록을 생성. (미리보기/지급 공용)
+    public List<ItemStack> buildRewardItems(String ceilingID, int times) {
+        List<ItemStack> items = new ArrayList<>();
+        CeilingDataDto ceilingData = getCeilingData(ceilingID);
+        if (ceilingData == null || ceilingData.getRewardData() == null || times <= 0) {
+            return items;
+        }
+        for (String rewardDatum : ceilingData.getRewardData()) {
+            String[] split = rewardDatum.split(":");
+            ItemStack item = MMOItems.plugin.getItem(split[0], split[1]);
+            if (item == null) {
+                continue;
+            }
+            item.setAmount(Integer.parseInt(split[2]) * times);
+            items.add(item);
+        }
+        return items;
     }
 
     public void giveRewards(Player player, String ceilingID) {
@@ -112,6 +144,39 @@ public class CeilingRepository {
         }
         player.sendMessage(ColorManager.format("#54daf4§n                                                                                                               §f"));
 
+    }
+
+    // 누적된 천장 보상을 한 번에 times 회분 지급한다. (접속 시 소급 지급 / 미리보기와 동일한 계산)
+    public void giveRewards(Player player, String ceilingID, int times) {
+        if (times <= 0) {
+            return;
+        }
+        CeilingDataDto ceilingData = getCeilingData(ceilingID);
+        if (ceilingData == null) {
+            return;
+        }
+        String name = ceilingData.getName();
+
+        List<ItemStack> mailItems = buildRewardItems(ceilingID, times);
+        if (mailItems.isEmpty()) {
+            return;
+        }
+
+        Mail mail = MMOMail.getInstance().getMailAPI().createMail("시스템", name + " 천장 시스템 보상입니다.", 0, mailItems);
+        MMOMail.getInstance().getMailAPI().sendMail(player.getName(), mail);
+
+        player.playSound(player, "uisounds:hugewin", 1, 1);
+        player.sendMessage(ColorManager.format("#54daf4§n                                                                                                               §f"));
+        player.sendMessage(ColorManager.format(""));
+        player.sendMessage(ColorManager.format("#54daf4 "+name+" 천장 시스템의 누적 보상 §e"+times+"회분§f이 지급되었습니다. §7§o(/메일함 또는 /ㅁ)"));
+        player.sendMessage("§f");
+        for (ItemStack mailItem : mailItems) {
+            String displayName = (mailItem.getItemMeta() != null && mailItem.getItemMeta().hasDisplayName())
+                    ? mailItem.getItemMeta().getDisplayName()
+                    : mailItem.getType().name();
+            player.sendMessage("   §e- "+displayName+" §fx"+mailItem.getAmount());
+        }
+        player.sendMessage(ColorManager.format("#54daf4§n                                                                                                               §f"));
     }
 
 

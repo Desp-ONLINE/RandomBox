@@ -9,6 +9,7 @@ import org.desp.randomBox.dto.PlayerCeilingDto;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -44,6 +45,24 @@ public class PlayerCeilingRepository {
         return playerCeilingDtoMap.get(player);
     }
 
+    // 닉네임으로 DB에서 천장 누적량을 조회 (오프라인 플레이어 포함). 데이터가 없으면 null 반환.
+    public Map<String, Integer> getCeilingAmountsByNickname(String nickname) {
+        Document playerDocument = playerCeilingCollection.find(new Document("nickname", nickname)).first();
+        if (playerDocument == null) {
+            return null;
+        }
+
+        Map<String, Integer> amounts = new LinkedHashMap<>();
+        List<Document> ceilingData = playerDocument.getList("ceilingData", Document.class);
+        if (ceilingData != null) {
+            for (Document ceilingDatum : ceilingData) {
+                Integer amount = ceilingDatum.getInteger("amount");
+                amounts.put(ceilingDatum.getString("ceilingID"), amount == null ? 0 : amount);
+            }
+        }
+        return amounts;
+    }
+
     public void loadPlayerData(Player player) {
 
         Document playerDocument = getPlayerDocument(player);
@@ -67,6 +86,42 @@ public class PlayerCeilingRepository {
 
         playerCeilingDtoMap.put(player, playerCeilingDto);
 
+    }
+
+    // 접속 시, volatile 천장 중 누적량이 목표 이상인 항목에 대해 보상을 소급 지급하고 누적량을 잔여값으로 차감한다.
+    // (loadPlayerData 이후 호출해야 캐시가 채워져 있다.)
+    public void grantPendingCeilingRewards(Player player) {
+        PlayerCeilingDto playerCeilingDto = playerCeilingDtoMap.get(player);
+        if (playerCeilingDto == null) {
+            return;
+        }
+
+        CeilingRepository ceilingRepository = CeilingRepository.getInstance();
+        HashMap<String, DetailedCeilingDto> playerCeilingData = playerCeilingDto.getCeilingData();
+
+        boolean changed = false;
+        for (Map.Entry<String, DetailedCeilingDto> entry : playerCeilingData.entrySet()) {
+            String ceilingID = entry.getKey();
+            DetailedCeilingDto detail = entry.getValue();
+            int playerAmount = detail.getAmount() == null ? 0 : detail.getAmount();
+
+            int times = ceilingRepository.getPendingRewardTimes(ceilingID, playerAmount);
+            if (times <= 0) {
+                continue;
+            }
+
+            int goal = ceilingRepository.getCeilingData(ceilingID).getAmount();
+            int remaining = playerAmount % goal;
+
+            ceilingRepository.giveRewards(player, ceilingID, times);
+            detail.setAmount(remaining);
+            changed = true;
+        }
+
+        // 차감 결과를 즉시 저장해 중복 지급을 방지한다. (다음 접속 시 누적량 < 목표 → times == 0)
+        if (changed) {
+            savePlayerData(player);
+        }
     }
 
     public Document insertDefaultDocument(Player player) {
@@ -99,7 +154,7 @@ public class PlayerCeilingRepository {
         playerCeilingCollection.replaceOne(new Document("uuid", player.getUniqueId().toString()), playerDocument);
     }
 
-    public void increaseCeilingAmount(Player player, String ceilingID, Integer amount) {
+    public boolean increaseCeilingAmount(Player player, String ceilingID, Integer amount) {
         Integer current = 0;
         boolean isAlreayExists = false;
         PlayerCeilingDto playerCeilingDto = playerCeilingDtoMap.get(player);
@@ -117,7 +172,8 @@ public class PlayerCeilingRepository {
         }
 
         if(!isAlreayExists){
-            DetailedCeilingDto detailedCeilingDto = DetailedCeilingDto.builder().ceilingID(ceilingID).amount(amount).build();
+            current = amount;
+            DetailedCeilingDto detailedCeilingDto = DetailedCeilingDto.builder().ceilingID(ceilingID).amount(current).build();
             playerCeilingData.put(ceilingID, detailedCeilingDto);
 
             playerCeilingDto.setCeilingData(playerCeilingData);
@@ -133,7 +189,9 @@ public class PlayerCeilingRepository {
             } else {
                 CeilingRepository.getInstance().giveRewards(player, ceilingID);
             }
+            return true;
         }
+        return false;
     }
 
     // 코드 구조 잘못됨. 이건 그냥 휘발하겠다로 봐야함.

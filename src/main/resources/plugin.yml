@@ -9,3 +9,6 @@ softdepend:
 commands:
   천장:
     aliases: ["cjswkd"]
+  천장확인:
+    aliases: ["cjswkdghkrdls"]
+    usage: "/천장확인 <닉네임>"

@@ -12,7 +12,9 @@ public class PlayerListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        PlayerCeilingRepository.getInstance().loadPlayerData(player);
+        PlayerCeilingRepository playerCeilingRepository = PlayerCeilingRepository.getInstance();
+        playerCeilingRepository.loadPlayerData(player);
+        playerCeilingRepository.grantPendingCeilingRewards(player);
     }
 
     @EventHandler
