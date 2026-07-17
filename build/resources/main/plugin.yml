@@ -1,0 +1,17 @@
+name: RandomBox
+version: '1.0-SNAPSHOT'
+main: org.desp.randomBox.RandomBox
+api-version: '1.20'
+depend:
+  [MMOItems, MMOCore, BinggreAPI, MythicLib, MMOMail, MongoLibraryPlugin, VelocitySocketClient]
+softdepend:
+  [ExcellentCrates]
+commands:
+  천장:
+    aliases: ["cjswkd"]
+  천장확인:
+    aliases: ["cjswkdghkrdls"]
+    usage: "/천장확인 <닉네임>"
+  천장복구:
+    aliases: ["cjswkdqhrrn"]
+    usage: "/천장복구 [진행]"
