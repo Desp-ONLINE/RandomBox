@@ -12,6 +12,7 @@ import org.bukkit.plugin.Plugin;
 import org.desp.randomBox.RandomBox;
 import org.desp.randomBox.boxUtils.BoxUtils;
 import org.desp.randomBox.boxUtils.DateUtils;
+import org.desp.randomBox.boxUtils.SpecialWeaponTicketMapper;
 import org.desp.randomBox.database.CrateBoxRepository;
 import org.desp.randomBox.database.ItemDrawRepository;
 import org.desp.randomBox.dto.CrateBoxDto;
@@ -147,6 +148,12 @@ public class CrateBoxListener implements Listener {
                 if (s == null) {
                     logger.warning("[CrateBox-Debug]   createItemStack null — 건너뜀");
                     continue;
+                }
+
+                ItemStack ticket = SpecialWeaponTicketMapper.toTicket(s);
+                if (ticket != null) {
+                    logger.info("[CrateBox-Debug]   특수무기 → 획득권 치환: " + MMOItems.getID(s) + " → " + MMOItems.getID(ticket));
+                    s = ticket;
                 }
                 stacks.add(s);
 
