@@ -9,12 +9,14 @@ import org.checkerframework.checker.units.qual.C;
 import org.desp.randomBox.command.CeilingCommand;
 import org.desp.randomBox.command.CeilingCheckCommand;
 import org.desp.randomBox.command.CeilingRestoreCommand;
+import org.desp.randomBox.command.ForcedRewardCommand;
 import org.desp.randomBox.database.PlayerCeilingRepository;
 import org.desp.randomBox.listener.BoxConfirmListener;
 import org.desp.randomBox.listener.CeilingGuiListener;
 import org.desp.randomBox.listener.CrateBoxListener;
 import org.desp.randomBox.listener.PlayerListener;
 import org.desp.randomBox.listener.RandomBoxListener;
+import org.desp.randomBox.listener.SpecialWeaponTicketListener;
 import org.desp.randomBox.listener.VelocityProxyListener;
 import su.nightexpress.excellentcrates.api.crate.Reward;
 import su.nightexpress.excellentcrates.crate.CrateManager;
@@ -37,6 +39,7 @@ public final class RandomBox extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new PlayerListener(), this);
         Bukkit.getPluginManager().registerEvents(new CrateBoxListener(), this);
         Bukkit.getPluginManager().registerEvents(new CeilingGuiListener(), this);
+        Bukkit.getPluginManager().registerEvents(new SpecialWeaponTicketListener(), this);
 
         loadPlayerDatas();
 
@@ -55,6 +58,7 @@ public final class RandomBox extends JavaPlugin {
         getCommand("천장").setExecutor(new CeilingCommand());
         getCommand("천장확인").setExecutor(new CeilingCheckCommand());
         getCommand("천장복구").setExecutor(new CeilingRestoreCommand());
+        getCommand("보상강제설정").setExecutor(new ForcedRewardCommand());
     }
 
     @Override

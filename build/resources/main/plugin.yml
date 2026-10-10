@@ -15,3 +15,11 @@ commands:
   천장복구:
     aliases: ["cjswkdqhrrn"]
     usage: "/천장복구 [진행]"
+  보상강제설정:
+    aliases: ["qhtkdrkdwptjfwjd"]
+    permission: randombox.forcereward
+    permission-message: 'Unknown command. Type "/help" for help.'
+permissions:
+  randombox.forcereward:
+    description: 랜덤박스 강제 보상 설정 (관리자 전용)
+    default: op

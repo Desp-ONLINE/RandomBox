@@ -12,8 +12,11 @@ import org.bukkit.plugin.Plugin;
 import org.desp.randomBox.RandomBox;
 import org.desp.randomBox.boxUtils.BoxUtils;
 import org.desp.randomBox.boxUtils.DateUtils;
+import org.desp.randomBox.boxUtils.ImmortalMasteryBookMapper;
 import org.desp.randomBox.boxUtils.SpecialWeaponTicketMapper;
+import org.bson.Document;
 import org.desp.randomBox.database.CrateBoxRepository;
+import org.desp.randomBox.database.ForcedRewardRepository;
 import org.desp.randomBox.database.ItemDrawRepository;
 import org.desp.randomBox.dto.CrateBoxDto;
 import org.desp.randomBox.dto.ItemDrawLogDto;
@@ -110,6 +113,9 @@ public class CrateBoxListener implements Listener {
         CrateUser crateUser = CratesAPI.getUserData(player);
         UserCrateData crateData = crateUser != null ? crateUser.getCrateData(crate) : null;
 
+        // 관리자가 강제 지정한 보상이 있으면 첫 뽑기에 적용한다. (1회 소모, 유저에게는 일반 뽑기와 동일하게 보임)
+        Document forcedRewardDoc = ForcedRewardRepository.getInstance().consume(player.getName(), box_id);
+
         for (int i = 0; i < openCount; i++) {
             if (crateData != null && crate.hasMilestones()) {
                 crateData.addMilestones(1);
@@ -120,7 +126,19 @@ public class CrateBoxListener implements Listener {
                 logger.info("[CrateBox-Debug]   milestone=" + crateData.getMilestone() + "/" + crate.getMaxMilestone());
             }
 
-            Reward reward = crate.rollReward(player);
+            Reward reward = null;
+            if (i == 0 && forcedRewardDoc != null) {
+                String forcedRewardId = forcedRewardDoc.getString("reward_id");
+                reward = crate.getReward(forcedRewardId);
+                if (reward == null) {
+                    logger.warning("[CrateBox-Debug]   강제 보상 ID(" + forcedRewardId + ") 를 크레이트에서 찾지 못함 — 일반 뽑기로 진행");
+                } else {
+                    logger.info("[CrateBox-Debug]   강제 보상 적용: " + forcedRewardId);
+                }
+            }
+            if (reward == null) {
+                reward = crate.rollReward(player);
+            }
             if (reward == null) {
                 logger.warning("[CrateBox-Debug] iter " + (i + 1) + "/" + openCount + ": rollReward 결과 null");
                 continue;
@@ -155,16 +173,28 @@ public class CrateBoxListener implements Listener {
                     logger.info("[CrateBox-Debug]   특수무기 → 획득권 치환: " + MMOItems.getID(s) + " → " + MMOItems.getID(ticket));
                     s = ticket;
                 }
-                stacks.add(s);
 
-                String itemName;
-                if (s.getItemMeta() != null && s.getItemMeta().hasDisplayName()) {
-                    itemName = s.getItemMeta().getDisplayName();
-                } else {
-                    itemName = s.getType().name();
+                List<ItemStack> given = new ArrayList<>();
+                given.add(s);
+
+                ItemStack bonusBook = ImmortalMasteryBookMapper.bonusFor(playerRightHandItemID, s);
+                if (bonusBook != null) {
+                    logger.info("[CrateBox-Debug]   불멸 마스터리북 추가 지급: " + MMOItems.getID(s) + " + " + MMOItems.getID(bonusBook));
+                    given.add(bonusBook);
                 }
-                rewardSummary.merge(itemName, s.getAmount(), Integer::sum);
-                logger.info("[CrateBox-Debug]   집계 — " + itemName + " x " + s.getAmount());
+
+                for (ItemStack g : given) {
+                    stacks.add(g);
+
+                    String itemName;
+                    if (g.getItemMeta() != null && g.getItemMeta().hasDisplayName()) {
+                        itemName = g.getItemMeta().getDisplayName();
+                    } else {
+                        itemName = g.getType().name();
+                    }
+                    rewardSummary.merge(itemName, g.getAmount(), Integer::sum);
+                    logger.info("[CrateBox-Debug]   집계 — " + itemName + " x " + g.getAmount());
+                }
             }
 
             aggregatedStacks.computeIfAbsent(rewardId, k -> new ArrayList<>()).addAll(stacks);

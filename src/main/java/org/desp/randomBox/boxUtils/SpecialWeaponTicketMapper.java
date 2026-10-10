@@ -16,9 +16,15 @@ import java.util.Map;
  */
 public class SpecialWeaponTicketMapper {
 
+    /** 획득권 MMOItems ID -> 지급할 특수무기 MMOItems ID (+0 강화) */
+    private static final Map<String, String> TICKET_TO_WEAPON = new HashMap<>();
+
     private static final Map<String, String> WEAPON_TO_TICKET = new LinkedHashMap<>();
     private static final Map<String, Type> TICKET_TYPE_CACHE = new HashMap<>();
+    private static final Map<String, Type> WEAPON_TYPE_CACHE = new HashMap<>();
     private static final List<String> KEYS_LONGEST_FIRST = new ArrayList<>();
+
+    private static final String WEAPON_ID_PREFIX = "특수무기_";
 
     static {
         WEAPON_TO_TICKET.put("폭파광", "기타_특수무기획득권_폭파광");
@@ -54,6 +60,11 @@ public class SpecialWeaponTicketMapper {
 
         KEYS_LONGEST_FIRST.addAll(WEAPON_TO_TICKET.keySet());
         KEYS_LONGEST_FIRST.sort((a, b) -> b.length() - a.length());
+
+        // 획득권 -> 특수무기 역방향. 지급은 항상 +0 강화 등급으로 한다.
+        for (Map.Entry<String, String> entry : WEAPON_TO_TICKET.entrySet()) {
+            TICKET_TO_WEAPON.put(entry.getValue(), WEAPON_ID_PREFIX + entry.getKey() + "0");
+        }
     }
 
     /**
@@ -75,6 +86,34 @@ public class SpecialWeaponTicketMapper {
 
         ticket.setAmount(original.getAmount());
         return ticket;
+    }
+
+    /** 해당 MMOItems ID 가 등록된 특수무기 획득권인지 여부 */
+    public static boolean isTicket(String mmoItemId) {
+        return mmoItemId != null && TICKET_TO_WEAPON.containsKey(mmoItemId);
+    }
+
+    /**
+     * 획득권 MMOItems ID 로 지급할 특수무기(+0) ItemStack 을 생성한다.
+     * 등록되지 않은 획득권이거나 MMOItems 에 무기가 없으면 null.
+     */
+    public static ItemStack toWeapon(String ticketId) {
+        String weaponId = TICKET_TO_WEAPON.get(ticketId);
+        if (weaponId == null) return null;
+
+        Type cached = WEAPON_TYPE_CACHE.get(weaponId);
+        if (cached != null) {
+            return MMOItems.plugin.getItem(cached, weaponId);
+        }
+
+        for (Type type : MMOItems.plugin.getTypes().getAll()) {
+            ItemStack item = MMOItems.plugin.getItem(type, weaponId);
+            if (item != null) {
+                WEAPON_TYPE_CACHE.put(weaponId, type);
+                return item;
+            }
+        }
+        return null;
     }
 
     private static String findTicketId(ItemStack item) {

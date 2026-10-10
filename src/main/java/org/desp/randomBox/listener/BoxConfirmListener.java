@@ -15,9 +15,13 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.desp.randomBox.api.RandomBoxOpenEvent;
+import org.bson.Document;
 import org.desp.randomBox.boxUtils.BoxUtils;
 import org.desp.randomBox.boxUtils.DateUtils;
+import org.desp.randomBox.boxUtils.ImmortalMasteryBookMapper;
+import org.desp.randomBox.command.ForcedRewardCommand;
 import org.desp.randomBox.database.BoxDataRepository;
+import org.desp.randomBox.database.ForcedRewardRepository;
 import org.desp.randomBox.database.ItemDrawRepository;
 import org.desp.randomBox.RandomBox;
 import org.desp.randomBox.dto.BoxDataDto;
@@ -115,10 +119,22 @@ public class BoxConfirmListener implements Listener {
             Map<String, Integer> aggregatedAmount = new LinkedHashMap<>();
             Map<String, ItemDataDto> aggregatedSample = new LinkedHashMap<>();
 
+            // 관리자가 강제 지정한 보상이 있으면 첫 뽑기에 적용한다. (1회 소모, 유저에게는 일반 뽑기와 동일하게 보임)
+            Document forcedRewardDoc = ForcedRewardRepository.getInstance().consume(player.getName(), box_id);
+            ItemDataDto forcedItem = null;
+            if (forcedRewardDoc != null) {
+                forcedItem = ForcedRewardCommand.findLegacyItem(boxDataDto, forcedRewardDoc.getString("reward_id"));
+                if (forcedItem == null) {
+                    RandomBox.getInstance().getLogger().warning("[RandomBox-Debug] " + player.getName()
+                            + " 강제 보상 ID(" + forcedRewardDoc.getString("reward_id") + ") 를 박스 " + box_id + " 에서 찾지 못함 — 일반 뽑기로 진행");
+                }
+            }
+
             for (int i = 0; i < openCount; i++) {
-                ItemDataDto randomItem = getRandomItem(availableItems);
+                ItemDataDto randomItem = (i == 0 && forcedItem != null) ? forcedItem : getRandomItem(availableItems);
 
                 ItemStack rewardItem = getValidRewardItem(randomItem);
+                ItemStack bonusBook = ImmortalMasteryBookMapper.bonusFor(playerRightHandItemID, rewardItem);
                 Component rewardItemComponent = rewardItem.getItemMeta().displayName();
 
                 String itemId = randomItem.getItem_id();
@@ -129,6 +145,10 @@ public class BoxConfirmListener implements Listener {
                 RandomBoxOpenEvent randomBoxOpenEvent = new RandomBoxOpenEvent(player, itemId, amount, chance, notice, box_id);
                 Bukkit.getPluginManager().callEvent(randomBoxOpenEvent);
                 if (randomBoxOpenEvent.isCancelled()) {
+                    // 천장 보상으로 대체되어 미지급된 경우, 강제 보상 설정을 되돌려 다음 뽑기에 다시 적용되게 한다.
+                    if (i == 0 && forcedItem != null) {
+                        ForcedRewardRepository.getInstance().restore(forcedRewardDoc);
+                    }
                     continue;
                 }
 
@@ -144,8 +164,14 @@ public class BoxConfirmListener implements Listener {
                     } else {
                         player.sendMessage(useItemDisplayName + "§f으로 " + rewardItem.getItemMeta().getDisplayName() + "§f를 획득했습니다!");
                     }
+                    if (bonusBook != null) {
+                        player.sendMessage("§f추가 보상으로 " + bonusBook.getItemMeta().getDisplayName() + "§f를 획득했습니다!");
+                    }
                 } else {
                     rewardSummary.merge(rewardItem.getItemMeta().getDisplayName(), amount, Integer::sum);
+                    if (bonusBook != null) {
+                        rewardSummary.merge(bonusBook.getItemMeta().getDisplayName(), amount, Integer::sum);
+                    }
                 }
 
                 String key = randomItem.getType() + "|" + itemId;
@@ -177,6 +203,22 @@ public class BoxConfirmListener implements Listener {
                     copy.setAmount(chunk);
                     stacks.add(copy);
                     remaining -= chunk;
+                }
+
+                // 불멸고서에서 불멸 마스터리북이 나왔으면 같은 수량만큼 레전더리 마스터리북을 같은 우편에 추가 지급
+                ItemStack bonusBook = ImmortalMasteryBookMapper.bonusFor(playerRightHandItemID, base);
+                if (bonusBook != null) {
+                    RandomBox.getInstance().getLogger().info("[RandomBox-Debug] 불멸 마스터리북 추가 지급: "
+                            + MMOItems.getID(base) + " + " + MMOItems.getID(bonusBook) + " x " + totalAmount);
+                    int bonusMaxStack = Math.max(1, bonusBook.getMaxStackSize());
+                    int bonusRemaining = totalAmount;
+                    while (bonusRemaining > 0) {
+                        ItemStack copy = bonusBook.clone();
+                        int chunk = Math.min(bonusRemaining, bonusMaxStack);
+                        copy.setAmount(chunk);
+                        stacks.add(copy);
+                        bonusRemaining -= chunk;
+                    }
                 }
 
                 mailJobs.add(new MailJob(stacks, sample.getItem_id()));
