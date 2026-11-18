@@ -5,7 +5,8 @@ api-version: '1.20'
 depend:
   [MMOItems, MMOCore, BinggreAPI, MythicLib, MMOMail, MongoLibraryPlugin, VelocitySocketClient]
 softdepend:
-  [ExcellentCrates]
+  # ExcellentCrates 는 /보물상자 이전 으로 유저 기록을 옮길 때만 쓴다. 이전 후에는 서버에서 빼도 된다.
+  [ExcellentCrates, IDEQuest, EtCetera, DataSync]
 commands:
   천장:
     aliases: ["cjswkd"]
@@ -19,7 +20,14 @@ commands:
     aliases: ["qhtkdrkdwptjfwjd"]
     permission: randombox.forcereward
     permission-message: 'Unknown command. Type "/help" for help.'
+  보물상자:
+    aliases: ["qhanftkdwk"]
+    permission: randombox.admin
+    permission-message: 'Unknown command. Type "/help" for help.'
 permissions:
+  randombox.admin:
+    description: 보물상자 관리 (관리자 전용)
+    default: op
   randombox.forcereward:
     description: 랜덤박스 강제 보상 설정 (관리자 전용)
     default: op

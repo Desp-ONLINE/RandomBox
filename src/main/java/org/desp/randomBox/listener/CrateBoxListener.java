@@ -1,5 +1,6 @@
 package org.desp.randomBox.listener;
 
+import com.binggre.binggreapi.utils.ColorManager;
 import net.Indyuce.mmoitems.MMOItems;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -7,30 +8,26 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
 import org.desp.randomBox.RandomBox;
 import org.desp.randomBox.boxUtils.BoxUtils;
 import org.desp.randomBox.boxUtils.DateUtils;
 import org.desp.randomBox.boxUtils.ImmortalMasteryBookMapper;
 import org.desp.randomBox.boxUtils.SpecialWeaponTicketMapper;
-import org.bson.Document;
+import org.desp.randomBox.crate.Crate;
+import org.desp.randomBox.crate.CrateManager;
+import org.desp.randomBox.crate.CrateOpenService;
+import org.desp.randomBox.crate.CrateReward;
+import org.desp.randomBox.crate.CrateUserRepository;
+import org.desp.randomBox.crate.QuestCompat;
+import org.desp.randomBox.crate.opening.OpeningSession;
 import org.desp.randomBox.database.CrateBoxRepository;
-import org.desp.randomBox.database.ForcedRewardRepository;
 import org.desp.randomBox.database.ItemDrawRepository;
+import org.desp.randomBox.database.SpecialWeaponStorageRepository;
 import org.desp.randomBox.dto.CrateBoxDto;
 import org.desp.randomBox.dto.ItemDrawLogDto;
 import org.dople.dataSync.inventory.InventorySyncListener;
-import su.nightexpress.excellentcrates.CratesAPI;
-import su.nightexpress.excellentcrates.CratesPlugin;
-import su.nightexpress.excellentcrates.api.crate.Reward;
-import su.nightexpress.excellentcrates.api.crate.RewardType;
-import su.nightexpress.excellentcrates.api.item.ItemProvider;
-import su.nightexpress.excellentcrates.crate.CrateManager;
-import su.nightexpress.excellentcrates.crate.impl.Crate;
-import su.nightexpress.excellentcrates.crate.reward.impl.ItemReward;
-import su.nightexpress.excellentcrates.data.crate.UserCrateData;
-import su.nightexpress.excellentcrates.user.CrateUser;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -38,6 +35,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
+/**
+ * 상자 아이템(CrateBoxData) 또는 상자 열쇠(CrateData.key_item)를 들고 쉬프트 우클릭하면
+ * 연결된 상자를 손에 든 개수만큼(mass-open-limit 까지) 한번에 연다.
+ */
 public class CrateBoxListener implements Listener {
 
     public CrateBoxRepository crateBoxRepository;
@@ -48,214 +49,172 @@ public class CrateBoxListener implements Listener {
         this.itemDrawRepository = ItemDrawRepository.getInstance();
     }
 
-    private static final class MailJob {
-        final List<ItemStack> reward;
-        final String drawItemId;
-
-        MailJob(List<ItemStack> reward, String drawItemId) {
-            this.reward = reward;
-            this.drawItemId = drawItemId;
-        }
-    }
-
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) return;
         if (!event.getAction().isRightClick()) return;
 
         Player player = event.getPlayer();
         ItemStack itemInMainHand = player.getInventory().getItemInMainHand();
-        if (itemInMainHand.equals(new ItemStack(Material.AIR))) {
+        if (itemInMainHand.getType() == Material.AIR) {
             return;
         }
 
         String playerRightHandItemID = MMOItems.getID(itemInMainHand);
         if (playerRightHandItemID == null) return;
 
+        // 상자 아이템이면 CrateBoxData 로, 아니면 상자 열쇠인지 CrateData.key_item 으로 찾는다.
         CrateBoxDto crateBox = crateBoxRepository.get(playerRightHandItemID);
-        if (crateBox == null) return;
+        Crate keyCrate = crateBox == null ? CrateManager.getInstance().getCrateByKey(playerRightHandItemID) : null;
+        if (crateBox == null && keyCrate == null) return;
 
         if (!player.isSneaking()) return;
 
-        if (InventorySyncListener.isDataLoading(player)) {
+        // 상자 블록을 누른 경우는 블록 상자(CrateBlockListener)가 처리한다.
+        if (event.getClickedBlock() != null && CrateManager.getInstance().isBlockCrateEnabled()
+                && CrateManager.getInstance().getCrateAt(event.getClickedBlock()) != null) return;
+        event.setCancelled(true);
+
+        if (InventorySyncListener.isDataLoading(player) || !CrateUserRepository.getInstance().isLoaded(player)) {
             player.sendMessage("§c 데이터가 로드중입니다.");
             return;
         }
-
-        Plugin ecPlugin = Bukkit.getPluginManager().getPlugin("ExcellentCrates");
-        if (!(ecPlugin instanceof CratesPlugin)) {
-            player.sendMessage("§c ExcellentCrates 플러그인이 활성화되어 있지 않습니다.");
+        if (CrateManager.isExcellentCratesActive()) {
+            player.sendMessage("§c 상자 시스템을 옮기는 중이라 지금은 열 수 없습니다. 잠시 후에 다시 시도해 주세요.");
             return;
         }
-        CrateManager crateManager = ((CratesPlugin) ecPlugin).getCrateManager();
-        Crate crate = crateManager.getCrateById(crateBox.getCrate_id());
+        if (OpeningSession.isOpening(player)) {
+            return;
+        }
+
+        String crateId = crateBox != null ? crateBox.getCrate_id() : keyCrate.getId();
+        Crate crate = keyCrate != null ? keyCrate : CrateManager.getInstance().getCrate(crateId);
         if (crate == null) {
-            player.sendMessage("§c 연결된 Crate(" + crateBox.getCrate_id() + ")를 찾을 수 없습니다.");
+            player.sendMessage("§c 연결된 상자(" + crateId + ")를 찾을 수 없습니다. 관리자에게 문의해 주세요.");
+            return;
+        }
+        // 열쇠로 여는 경우는 블록 상자와 같은 퀘스트 조건을 건다. IDEQuest 가 없는 서버는 확인하지 않는다.
+        if (keyCrate != null && crate.getRequiredQuest() > 0 && Bukkit.getPluginManager().isPluginEnabled("IDEQuest")
+                && !QuestCompat.hasQuestData(player, crate.getRequiredQuest())) {
+            player.sendMessage("§c  " + (crate.getRequiredQuest() - 1) + "번 메인 퀘스트를 먼저 클리어하세요!");
             return;
         }
 
-        String box_id = crateBox.getBox_id();
+        // 강제 보상과 뽑기 로그에 쓰는 ID. 상자 아이템은 박스ID, 열쇠는 상자ID다.
+        String box_id = crateBox != null ? crateBox.getBox_id() : crate.getId();
         String useItemDisplayName = itemInMainHand.getItemMeta().getDisplayName();
-
-        int openCount = 1;
-
         final Logger logger = RandomBox.getInstance().getLogger();
-        logger.info("[CrateBox-Debug] " + player.getName() + " 진입: box=" + box_id + ", crate=" + crateBox.getCrate_id() + ", openCount=" + openCount);
 
-        if (itemInMainHand.getAmount() > openCount) {
-            itemInMainHand.setAmount(itemInMainHand.getAmount() - openCount);
+        // 손에 든 개수만큼 뽑는다. 관리자가 강제 지정한 보상이 있으면 그것을 먼저 쓴다(1회 소모).
+        int limit = Math.max(1, CrateManager.getInstance().getConfig().getInt("mass-open-limit", 64));
+        int count = Math.min(itemInMainHand.getAmount(), limit);
+        List<CrateReward> rewards = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            CrateReward reward = CrateOpenService.roll(player, crate, box_id);
+            if (reward == null) {
+                break;
+            }
+            rewards.add(reward);
+        }
+        if (rewards.isEmpty()) {
+            player.sendMessage("§c 보상이 비어 있습니다. 관리자에게 문의하세요.");
+            return;
+        }
+
+        itemInMainHand.setAmount(itemInMainHand.getAmount() - rewards.size());
+
+        CrateOpenService.progressMilestones(player, crate, rewards.size());
+        Runnable deliver = () -> deliver(player, box_id, playerRightHandItemID, useItemDisplayName, rewards, logger);
+        if (rewards.size() == 1) {
+            CrateOpenService.present(player, crate, rewards.get(0), deliver);
         } else {
-            player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+            deliver.run();
         }
+    }
 
+    private void deliver(Player player, String box_id, String usedItemId, String useItemDisplayName,
+                         List<CrateReward> rewards, Logger logger) {
         Map<String, Integer> rewardSummary = new LinkedHashMap<>();
-        Map<String, List<ItemStack>> aggregatedStacks = new LinkedHashMap<>();
+        List<ItemStack> stacks = new ArrayList<>();
+        boolean storedSpecialWeapon = false;
 
-        CrateUser crateUser = CratesAPI.getUserData(player);
-        UserCrateData crateData = crateUser != null ? crateUser.getCrateData(crate) : null;
-
-        // 관리자가 강제 지정한 보상이 있으면 첫 뽑기에 적용한다. (1회 소모, 유저에게는 일반 뽑기와 동일하게 보임)
-        Document forcedRewardDoc = ForcedRewardRepository.getInstance().consume(player.getName(), box_id);
-
-        for (int i = 0; i < openCount; i++) {
-            if (crateData != null && crate.hasMilestones()) {
-                crateData.addMilestones(1);
-                crateManager.triggerMilestones(player, crate, crateData.getMilestone());
-                if (crateData.getMilestone() >= crate.getMaxMilestone() && crate.isMilestonesRepeatable()) {
-                    crateData.setMilestone(0);
-                }
-                logger.info("[CrateBox-Debug]   milestone=" + crateData.getMilestone() + "/" + crate.getMaxMilestone());
-            }
-
-            Reward reward = null;
-            if (i == 0 && forcedRewardDoc != null) {
-                String forcedRewardId = forcedRewardDoc.getString("reward_id");
-                reward = crate.getReward(forcedRewardId);
-                if (reward == null) {
-                    logger.warning("[CrateBox-Debug]   강제 보상 ID(" + forcedRewardId + ") 를 크레이트에서 찾지 못함 — 일반 뽑기로 진행");
-                } else {
-                    logger.info("[CrateBox-Debug]   강제 보상 적용: " + forcedRewardId);
-                }
-            }
-            if (reward == null) {
-                reward = crate.rollReward(player);
-            }
-            if (reward == null) {
-                logger.warning("[CrateBox-Debug] iter " + (i + 1) + "/" + openCount + ": rollReward 결과 null");
-                continue;
-            }
-            logger.info("[CrateBox-Debug] iter " + (i + 1) + "/" + openCount + ": reward.id=" + reward.getId() + ", type=" + reward.getType() + ", class=" + reward.getClass().getName());
-            if (reward.getType() != RewardType.ITEM) {
-                logger.warning("[CrateBox-Debug]   ITEM 타입 아님 — 건너뜀");
-                continue;
-            }
-            if (!(reward instanceof ItemReward)) {
-                logger.warning("[CrateBox-Debug]   ItemReward 인스턴스 아님 (실제: " + reward.getClass().getName() + ") — 건너뜀");
-                continue;
-            }
-
-            ItemReward itemReward = (ItemReward) reward;
-            String rewardId = itemReward.getId();
-
-            List<ItemProvider> providers = itemReward.getItems();
-            logger.info("[CrateBox-Debug]   providers.size=" + (providers == null ? "null" : providers.size()));
-            if (providers == null) continue;
-
-            List<ItemStack> stacks = new ArrayList<>();
-            for (ItemProvider p : providers) {
-                ItemStack s = p.createItemStack();
-                if (s == null) {
-                    logger.warning("[CrateBox-Debug]   createItemStack null — 건너뜀");
-                    continue;
-                }
-
-                ItemStack ticket = SpecialWeaponTicketMapper.toTicket(s);
-                if (ticket != null) {
-                    logger.info("[CrateBox-Debug]   특수무기 → 획득권 치환: " + MMOItems.getID(s) + " → " + MMOItems.getID(ticket));
-                    s = ticket;
-                }
-
-                List<ItemStack> given = new ArrayList<>();
-                given.add(s);
-
-                ItemStack bonusBook = ImmortalMasteryBookMapper.bonusFor(playerRightHandItemID, s);
-                if (bonusBook != null) {
-                    logger.info("[CrateBox-Debug]   불멸 마스터리북 추가 지급: " + MMOItems.getID(s) + " + " + MMOItems.getID(bonusBook));
-                    given.add(bonusBook);
-                }
-
-                for (ItemStack g : given) {
-                    stacks.add(g);
-
-                    String itemName;
-                    if (g.getItemMeta() != null && g.getItemMeta().hasDisplayName()) {
-                        itemName = g.getItemMeta().getDisplayName();
-                    } else {
-                        itemName = g.getType().name();
-                    }
-                    rewardSummary.merge(itemName, g.getAmount(), Integer::sum);
-                    logger.info("[CrateBox-Debug]   집계 — " + itemName + " x " + g.getAmount());
-                }
-            }
-
-            aggregatedStacks.computeIfAbsent(rewardId, k -> new ArrayList<>()).addAll(stacks);
+        List<ItemStack> created = new ArrayList<>();
+        for (CrateReward reward : rewards) {
+            created.addAll(reward.createItems());
         }
 
-        logger.info("[CrateBox-Debug] rewardSummary.size=" + rewardSummary.size() + ", aggregatedStacks.size=" + aggregatedStacks.size());
+        for (ItemStack s : created) {
+            ItemStack ticket = SpecialWeaponTicketMapper.toTicket(s);
+            if (ticket != null) {
+                s = ticket;
+            }
+
+            List<ItemStack> given = new ArrayList<>();
+            given.add(s);
+            ItemStack bonusBook = ImmortalMasteryBookMapper.bonusFor(usedItemId, s);
+            if (bonusBook != null) {
+                given.add(bonusBook);
+            }
+
+            for (ItemStack g : given) {
+                // 특수무기 획득권은 실물 대신 EtCetera 특수무기 보관함(/특수무기)에 개수로 적립한다.
+                String storageName = SpecialWeaponTicketMapper.storageNameOf(MMOItems.getID(g));
+                if (storageName != null) {
+                    SpecialWeaponStorageRepository.getInstance().add(
+                            player.getUniqueId().toString(), player.getName(), storageName, g.getAmount());
+                    storedSpecialWeapon = true;
+                } else {
+                    stacks.add(g);
+                }
+
+                String itemName = g.getItemMeta() != null && g.getItemMeta().hasDisplayName()
+                        ? g.getItemMeta().getDisplayName() : g.getType().name();
+                rewardSummary.merge(itemName, g.getAmount(), Integer::sum);
+            }
+        }
 
         if (!rewardSummary.isEmpty()) {
-            player.sendMessage(useItemDisplayName + "§f을(를) §e" + openCount + "§f개 소모하여 다음 보상을 획득하셨습니다:");
+            player.sendMessage(useItemDisplayName + "§f을(를) §e" + rewards.size() + "§f개 소모하여 다음 보상을 획득하셨습니다:");
             for (Map.Entry<String, Integer> entry : rewardSummary.entrySet()) {
                 player.sendMessage("§7- " + entry.getKey() + "§7 x §e" + entry.getValue());
             }
         } else {
-            logger.warning("[CrateBox-Debug] rewardSummary 비어있음 — 보상 메시지 미발송");
+            logger.warning("[CrateBox] " + player.getName() + " 보상 아이템을 만들지 못했습니다: box=" + box_id);
             player.sendMessage("§c 보상이 비어 있습니다. 관리자에게 문의하세요.");
         }
-
-        List<MailJob> mailJobs = new ArrayList<>();
-        for (Map.Entry<String, List<ItemStack>> entry : aggregatedStacks.entrySet()) {
-            mailJobs.add(new MailJob(entry.getValue(), entry.getKey()));
+        if (storedSpecialWeapon) {
+            player.sendMessage(ColorManager.format("#FFD3A8[특수무기] #A8E6B8획득한 특수무기는 보관함에 보관되었습니다. §7(/특수무기)"));
         }
 
-        if (!mailJobs.isEmpty()) {
-            final String playerName = player.getName();
-            final String playerUuid = player.getUniqueId().toString();
-            final int totalJobs = mailJobs.size();
-            logger.info("[CrateBox-Debug] " + playerName + " 메일 발송 시작: box=" + box_id + ", crate=" + crateBox.getCrate_id() + ", 총 " + totalJobs + "개");
-
-            for (int i = 0; i < mailJobs.size(); i++) {
-                final MailJob job = mailJobs.get(i);
-                final int seq = i + 1;
-                Bukkit.getScheduler().runTaskLater(RandomBox.getInstance(), () -> {
-                    try {
-                        logger.info("[CrateBox-Debug] (" + seq + "/" + totalJobs + ") sendReward 시도 — rewardId=" + job.drawItemId + ", stacks=" + job.reward.size());
-                        BoxUtils.sendReward(box_id, job.reward, player);
-                        logger.info("[CrateBox-Debug] (" + seq + "/" + totalJobs + ") sendReward 완료");
-                    } catch (Exception e) {
-                        logger.warning("[CrateBox-Debug] (" + seq + "/" + totalJobs + ") sendReward 실패: " + e.getClass().getSimpleName() + " — " + e.getMessage());
-                        e.printStackTrace();
-                    }
-
-                    Bukkit.getScheduler().runTaskAsynchronously(RandomBox.getInstance(), () -> {
-                        try {
-                            ItemDrawLogDto dto = ItemDrawLogDto.builder()
-                                    .user_id(playerName)
-                                    .uuid(playerUuid)
-                                    .usedItem(box_id)
-                                    .drawItem(job.drawItemId)
-                                    .build();
-                            itemDrawRepository.insertDrawLog(dto, DateUtils.getCurrentTime());
-                        } catch (Exception e) {
-                            logger.warning("[CrateBox-Debug] (" + seq + "/" + totalJobs + ") insertDrawLog 실패: " + e.getClass().getSimpleName() + " — " + e.getMessage());
-                            e.printStackTrace();
-                        }
-                    });
-
-                    if (seq == totalJobs) {
-                        logger.info("[CrateBox-Debug] " + playerName + " 메일 발송 종료 (총 " + totalJobs + "개)");
-                    }
-                }, i);
+        if (!stacks.isEmpty()) {
+            try {
+                BoxUtils.sendCrateReward(useItemDisplayName, stacks, player);
+            } catch (Exception e) {
+                logger.warning("[CrateBox] " + player.getName() + " 메일 발송 실패: " + e.getClass().getSimpleName() + " " + e.getMessage());
+                e.printStackTrace();
             }
         }
+
+        final String playerName = player.getName();
+        final String playerUuid = player.getUniqueId().toString();
+        final List<String> drawItemIds = new ArrayList<>();
+        for (CrateReward reward : rewards) {
+            drawItemIds.add(reward.getId());
+        }
+        CrateOpenService.runAsync(() -> {
+            for (String drawItemId : drawItemIds) {
+                try {
+                    ItemDrawLogDto dto = ItemDrawLogDto.builder()
+                            .user_id(playerName)
+                            .uuid(playerUuid)
+                            .usedItem(box_id)
+                            .drawItem(drawItemId)
+                            .build();
+                    itemDrawRepository.insertDrawLog(dto, DateUtils.getCurrentTime());
+                } catch (Exception e) {
+                    logger.warning("[CrateBox] insertDrawLog 실패: " + e.getClass().getSimpleName() + " " + e.getMessage());
+                }
+            }
+        });
     }
 }

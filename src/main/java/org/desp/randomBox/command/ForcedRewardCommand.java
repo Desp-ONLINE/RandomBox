@@ -5,7 +5,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.plugin.Plugin;
 import org.desp.randomBox.RandomBox;
 import org.desp.randomBox.database.BoxDataRepository;
 import org.desp.randomBox.database.CrateBoxRepository;
@@ -14,8 +13,8 @@ import org.desp.randomBox.dto.BoxDataDto;
 import org.desp.randomBox.dto.CrateBoxDto;
 import org.desp.randomBox.dto.ItemDataDto;
 import org.jetbrains.annotations.NotNull;
-import su.nightexpress.excellentcrates.CratesPlugin;
-import su.nightexpress.excellentcrates.crate.impl.Crate;
+import org.desp.randomBox.crate.Crate;
+import org.desp.randomBox.crate.CrateManager;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -63,8 +62,10 @@ public class ForcedRewardCommand implements CommandExecutor {
     private void setForcedReward(CommandSender sender, String nickname, String boxId, String rewardId) {
         BoxDataDto legacyBox = BoxDataRepository.getInstance().getBoxData().get(boxId);
         CrateBoxDto crateBox = CrateBoxRepository.getInstance().get(boxId);
+        // 박스ID 자리에 상자ID를 넣으면 설치된 상자 블록의 다음 오픈 보상을 지정한다.
+        Crate blockCrate = CrateManager.getInstance().getCrate(boxId);
 
-        if (legacyBox == null && crateBox == null) {
+        if (legacyBox == null && crateBox == null && blockCrate == null) {
             sender.sendMessage("§c[보상강제설정] 존재하지 않는 박스ID 입니다: " + boxId);
             return;
         }
@@ -75,15 +76,18 @@ public class ForcedRewardCommand implements CommandExecutor {
             valid = true;
         }
         if (!valid && crateBox != null) {
-            Crate crate = getCrate(crateBox.getCrate_id());
+            Crate crate = CrateManager.getInstance().getCrate(crateBox.getCrate_id());
             if (crate != null && crate.getReward(rewardId) != null) {
                 valid = true;
             }
         }
+        if (!valid && blockCrate != null && blockCrate.getReward(rewardId) != null) {
+            valid = true;
+        }
 
         if (!valid) {
             sender.sendMessage("§c[보상강제설정] 박스 §e" + boxId + "§c 에 존재하지 않는 보상ID 입니다: " + rewardId);
-            sendAvailableRewardIds(sender, legacyBox, crateBox);
+            sendAvailableRewardIds(sender, legacyBox, crateBox, blockCrate);
             return;
         }
 
@@ -128,7 +132,7 @@ public class ForcedRewardCommand implements CommandExecutor {
         });
     }
 
-    private void sendAvailableRewardIds(CommandSender sender, BoxDataDto legacyBox, CrateBoxDto crateBox) {
+    private void sendAvailableRewardIds(CommandSender sender, BoxDataDto legacyBox, CrateBoxDto crateBox, Crate blockCrate) {
         if (legacyBox != null) {
             String ids = legacyBox.getAvailableItems().stream()
                     .map(ItemDataDto::getItem_id)
@@ -136,12 +140,15 @@ public class ForcedRewardCommand implements CommandExecutor {
             sender.sendMessage("§7 사용 가능한 보상ID: §f" + ids);
         }
         if (crateBox != null) {
-            Crate crate = getCrate(crateBox.getCrate_id());
+            Crate crate = CrateManager.getInstance().getCrate(crateBox.getCrate_id());
             if (crate != null) {
-                sender.sendMessage("§7 사용 가능한 보상ID: §f" + String.join("§7, §f", crate.getRewardIds()));
+                sender.sendMessage("§7 사용 가능한 보상ID: §f" + String.join("§7, §f", crate.getRewards().keySet()));
             } else {
-                sender.sendMessage("§7 크레이트(" + crateBox.getCrate_id() + ")를 찾을 수 없어 보상ID를 조회하지 못했습니다.");
+                sender.sendMessage("§7 상자(" + crateBox.getCrate_id() + ")를 찾을 수 없어 보상ID를 조회하지 못했습니다.");
             }
+        }
+        if (blockCrate != null) {
+            sender.sendMessage("§7 사용 가능한 보상ID: §f" + String.join("§7, §f", blockCrate.getRewards().keySet()));
         }
     }
 
@@ -155,11 +162,4 @@ public class ForcedRewardCommand implements CommandExecutor {
         return null;
     }
 
-    private Crate getCrate(String crateId) {
-        Plugin ecPlugin = Bukkit.getPluginManager().getPlugin("ExcellentCrates");
-        if (!(ecPlugin instanceof CratesPlugin)) {
-            return null;
-        }
-        return ((CratesPlugin) ecPlugin).getCrateManager().getCrateById(crateId);
-    }
 }

@@ -8,6 +8,7 @@ import lombok.Getter;
 
 public class DatabaseRegister {
 
+    @Getter
     private final MongoClient mongoClient;
     @Getter
     private final MongoDatabase database;

@@ -88,6 +88,14 @@ public class SpecialWeaponTicketMapper {
         return ticket;
     }
 
+    /**
+     * 획득권 MMOItems ID 면 EtCetera 특수무기 보관함에 쓰는 무기 이름("기타_특수무기획득권_" 뒤 부분), 아니면 null.
+     */
+    public static String storageNameOf(String mmoItemId) {
+        if (!isTicket(mmoItemId)) return null;
+        return mmoItemId.substring("기타_특수무기획득권_".length());
+    }
+
     /** 해당 MMOItems ID 가 등록된 특수무기 획득권인지 여부 */
     public static boolean isTicket(String mmoItemId) {
         return mmoItemId != null && TICKET_TO_WEAPON.containsKey(mmoItemId);

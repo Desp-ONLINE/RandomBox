@@ -1,0 +1,105 @@
+# RandomBox 상자 시스템 설정 (ExcellentCrates 대체)
+# 상자와 보상 데이터는 MongoDB RandomBox.CrateData 컬렉션에 있고, 이 파일은 공통 설정만 담는다.
+# 변경 후 /보물상자 리로드 로 반영한다.
+
+# 블록 상자(설치된 상자 블록)를 켤 채널이다. EtCetera config 의 channelType 과 비교한다.
+# 비워 두면 모든 서버에서 켜진다. EtCetera 가 없는 서버도 켜진다.
+block-channels:
+  - lobby
+
+# 파티클과 홀로그램이 보이는 거리(블록)
+visibility-distance: 24
+
+# 상자 블록 좌클릭 미리보기 재사용 대기 시간(밀리초)
+preview-cooldown-ms: 2500
+
+# 블록 상자 연속 오픈 간격(틱). 기존 EtCetera 와 같은 10틱이다.
+open-interval-ticks: 10
+
+# 상자의 열쇠를 들고 상자를 쉬프트 우클릭하면 손에 든 열쇠 개수만큼 한번에 연다. 한 번에 여는 최대 개수다.
+mass-open-limit: 64
+
+# 애니메이션이 없는 상자를 열면 상자 위에 획득한 보상을 잠깐 띄운다.
+display-reward-above-block: true
+reward-display-ticks: 60
+
+# 홀로그램 줄 간격
+hologram-line-gap: 0.3
+
+# EC 데이터를 옮겨 올 때 읽는 폴더 (서버 루트 기준)
+ec-folder: "plugins/ExcellentCrates"
+
+# 보상 등급. 상자를 열면 먼저 등급을 이 가중치로 고르고, 그 등급 안에서 보상 가중치로 고른다.
+rarities:
+  epic:
+    name: '<#F0A9FF>에<#FFFFFF>픽'
+    weight: 20.0
+  legendary:
+    name: '<#FFC016>레<#FFD564>전<#FFEAB1>더<#FFFFFF>리'
+    weight: 10.0
+  special:
+    name: '<#C44040>스<#FFFFFF>페<#4156FF>셜'
+    weight: 9.0
+  rare:
+    name: '<#90FF78>레<#FFFFFF>어'
+    weight: 25.0
+  common:
+    name: '<#DBDBDB>일<#FFFFFF>반'
+    weight: 28.5
+  unique:
+    name: '<#A9FFFC>유<#D4FFFE>니<#FFFFFF>크'
+    weight: 17.5
+
+# 상자 블록 위 홀로그램. <crate_name> 자리에 상자 이름이 들어간다.
+hologram-templates:
+  default:
+    - '<lyellow><u><crate_name></u></lyellow>'
+    - '<lgray>판도라로부터 </lgray><#7600FF>판<#7715E9>도<#7829D3>라<#793EBD>의 <#7A6791>열<#7B7B7B>쇠<lgray>를 획득해 열어보세요!'
+    - '<lgray>좌클릭: <lyellow>미리보기</lyellow></lgray>'
+    - '<lgray><italic>(열쇠를 들고)</italic> 우클릭: <lyellow>오픈하기</lyellow> </lgray>'
+  village:
+    - '<lyellow><u><crate_name></u></lyellow>'
+    - '<lgray>던전 몬스터들로부터 <green>열쇠<lgray>를 얻어 열어보세요!'
+    - '<lgray>좌클릭: <lyellow>미리보기</lyellow></lgray>'
+    - '<lgray><italic>(열쇠를 들고)</italic> 우클릭: <lyellow>오픈하기</lyellow> </lgray>'
+
+# 미리보기 GUI (EC previews/default.yml 과 같은 배치)
+preview:
+  rows: 5
+  reward-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34]
+  black-pane-slots: [1, 2, 3, 5, 6, 7, 9, 18, 27, 17, 26, 35, 37, 38, 39, 40, 41, 42, 43]
+  gray-pane-slots: [0, 4, 8, 36, 44]
+  milestone-slot: 4
+  exit-slot: 40
+  next-slot: 26
+  previous-slot: 18
+  lore:
+    default:
+      - '<lyellow>    ▪ <lgray>확률 </lgray><chance>%</lyellow>'
+      - '<lyellow>    ▪ <lgray>등급: </lgray><rarity_name> <lgray>(<white><rarity_chance>%</white>)</lgray></lyellow>'
+    nochance:
+      - '<lyellow>    ▪ <lgray>등급: </lgray><rarity_name>'
+
+# 마일스톤 GUI (EC milestones.yml 과 같은 배치)
+milestone-menu:
+  title: '<black>보상</black>'
+  rows: 3
+  slots: [13]
+  black-pane-slots: [0, 1, 2, 3, 5, 6, 7, 8, 18, 19, 20, 21, 23, 24, 25, 26]
+  gray-pane-slots: [9, 10, 11, 15, 16, 17]
+  white-pane-slots: [4, 12, 14]
+  return-slot: 22
+  next-slot: 17
+  previous-slot: 9
+  completed:
+    name: '<lgreen><openings>회 오픈</lgreen> <gray>(<white>완료</white>)</gray>'
+    lore:
+      - '<lgreen>정보:</lgreen>'
+      - '<lgreen>  ▪ <lgray>보상: </lgray><reward_name></lgreen>'
+    skin: a79a5c95ee17abfef45c8dc224189964944d560f19a44f19f8a46aef3fee4756
+  incompleted:
+    name: '<lyellow><openings>회 오픈</lyellow> <gray>(<white>진행중</white>)</gray>'
+    lore:
+      - '<lyellow>정보:</lyellow>'
+      - '<lyellow>  ▪ <lgray>보상 수령까지: </lgray><openings_left><lgray>회 남았습니다.</lgray></lyellow>'
+      - '<lyellow>  ▪ <lgray>보상: </lgray><reward_name></lyellow>'

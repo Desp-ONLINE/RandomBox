@@ -44,6 +44,18 @@ public class BoxUtils {
         mmoMail.getMailAPI().sendMail(player.getName(), rewardMail);
     }
 
+    /** 보물상자(블록 상자, 상자 아이템) 보상 메일. crateName 은 § 색코드가 들어간 표시 이름이다. */
+    public static void sendCrateReward(String crateName, List<ItemStack> reward, Player player) {
+        MMOMail mmoMail = MMOMail.getInstance();
+        Mail rewardMail = mmoMail.getMailAPI().createMail(
+                "시스템",
+                "보물상자, " + crateName + "§f의 보상입니다.",
+                0,
+                reward
+        );
+        mmoMail.getMailAPI().sendMail(player.getName(), rewardMail);
+    }
+
     public static ItemDataDto getRandomItem(List<ItemDataDto> items) {
         Random random = new Random();
 
